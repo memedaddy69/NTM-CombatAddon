@@ -16,19 +16,33 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = EntityDamageUtil.class, remap = false)
 public class MixinEntityDamageUtil {
 
+    // Assuming the method is static and returns a boolean.
+    // If it returns void, use CallbackInfo instead.
+    @Inject(method = "attackEntityFromNT", at = @At("HEAD"), remap = false)
+    private static void onAttackStart(CallbackInfoReturnable<Boolean> cir) {
+        AddonDamageState.isNTDamage.set(true);
+    }
+
+    // @At("TAIL") ensures the flag is lowered right before the method exits,
+    // regardless of which 'return' statement was hit inside the method.
+    @Inject(method = "attackEntityFromNT", at = @At("TAIL"), remap = false)
+    private static void onAttackEnd(CallbackInfoReturnable<Boolean> cir) {
+        AddonDamageState.isNTDamage.set(false);
+    }
+}
     /**
      * Overrides HBM's default armor calculation to use your custom toughness math.
      */
     @Inject(method = "applyArmorCalculationsNT", at = @At("HEAD"), cancellable = true)
     private static void injectCustomArmorCalculations(EntityLivingBase living, DamageSource source, float amount, CallbackInfoReturnable<Float> cir) {
+        boolean bypassArmor = AddonDamageState.bypassVanillaArmorThisDamage.get();
 
-        // Note: You referenced `DamageResistanceHandler.bypassVanillaArmorThisDamage` in your custom code.
-        // If you haven't added that field to DamageResistanceHandler via another mixin yet, this will error!
-        if (!source.isUnblockable() && !DamageResistanceHandler.bypassVanillaArmorThisDamage) {
+        if (!source.isUnblockable() && !bypassArmor) {
             float armor = living.getTotalArmorValue();
             float toughness = (float) living.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS).getAttributeValue();
 
-            float effectiveArmor = armor * (1 - DamageResistanceHandler.currentPDR);
+            float pdr = DamageResistanceHandler.currentPDR.get();
+            float effectiveArmor = armor * (1 - pdr);
 
             float newAmount = CombatRules.getDamageAfterAbsorb(amount, effectiveArmor, toughness);
 

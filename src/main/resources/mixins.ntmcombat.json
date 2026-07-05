@@ -1,11 +1,11 @@
 {
-	"package": "com.memedaddy.ntmcombat.mixin",
+	"package": "com.memedaddy.ntmcombat.overwrite_contents.mixin",
 	"required": true,
 	"refmap": "${mixin_refmap}",
 	"target": "@env(DEFAULT)",
 	"minVersion": "0.8.5",
 	"compatibilityLevel": "JAVA_8",
-	"mixins": ["MixinEntityDamageUtil"],
+	"mixins": ["MixinEntityDamageUtil", "IDamageResistanceAccessor", "IResistanceStatsAccessor", "MixinDamageCalculations", "IEntityLivingBaseAccessor", "MixinResistanceStats"],
 	"server": [],
 	"client": []
 }

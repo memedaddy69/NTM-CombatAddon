@@ -1,14 +1,11 @@
 package com.memedaddy.ntmcombat.util;
 
+import com.hbm.util.DamageResistanceHandler;
+import com.hbm.util.EntityDamageUtil;
+import com.memedaddy.ntmcombat.overwrite_contents.mixin.IEntityLivingBaseAccessor;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.MultiPartEntityPart;
-import com.hbm.config.ServerConfig;
-import com.hbm.handler.ArmorModHandler;
-import com.hbm.interfaces.Untested;
-import com.hbm.items.ModItems;
-import com.hbm.lib.internal.MethodHandleHelper;
-import com.hbm.main.MainRegistry;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.MultiPartEntityPart;
 import net.minecraft.entity.passive.EntityTameable;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -22,6 +19,7 @@ public class AddonDamageUtil {
         }
         return entity;
     }
+
     /**
      * Compatibility helper: treat the given vanilla DamageSource (for example DamageSource.ON_FIRE)
      * as the damage source while still routing the hit through SEDNA reductions.
@@ -29,20 +27,24 @@ public class AddonDamageUtil {
      * while SEDNA DT/DR are still applied via the LivingHurtEvent.
      */
     public static boolean attackEntityFromNTUsingVanillaSource(EntityLivingBase living, DamageSource vanillaSource, Entity trueAttacker, float amount, boolean ignoreIFrame, boolean allowSpecialCancel, double knockbackMultiplier, float pierceDT, float pierce, boolean bypassVanillaArmor) {
+
         if (living instanceof EntityPlayerMP && trueAttacker instanceof EntityPlayer) {
             if (!((EntityPlayerMP) living).canAttackPlayer((EntityPlayer) trueAttacker))
                 return false;
         }
 
-        if (ignoreIFrame) { living.lastDamage = 0F; living.hurtResistantTime = 0; }
+        if (ignoreIFrame) {
+            // FIXED: Using the Accessor to bypass protected visibility
+            ((IEntityLivingBaseAccessor) living).setLastDamage(0F);
+            living.hurtResistantTime = 0;
+        }
 
-        // 1. Call base HBM's setup (it only accepts 2 parameters!)
+        // 1. Call base HBM's setup
         DamageResistanceHandler.setup(pierceDT, pierce);
 
-        // 2. Set our custom addon states to communicate with the Mixins
-        AddonDamageState.isNTDamage.set(true); // Forces the Mixin to route to SEDNA
+        // 2. Set custom addon states to communicate with the Mixins
+        AddonDamageState.isNTDamage.set(true);
         AddonDamageState.bypassVanillaArmorThisDamage.set(bypassVanillaArmor);
-        AddonDamageState.currentPDR.set(pierce); // Ensures applyArmorCalculationsNT has the correct PDR
 
         try {
             // Call vanilla attackEntityFrom with the vanilla source while SEDNA is active so
@@ -51,19 +53,20 @@ public class AddonDamageUtil {
 
             // Post-process: preserve attacker attribution and knockback using the provided trueAttacker
             Entity entity = trueAttacker != null ? trueAttacker : vanillaSource.getTrueSource();
+            IEntityLivingBaseAccessor accessor = (IEntityLivingBaseAccessor) living;
             if (entity != null) {
                 if (entity instanceof EntityLivingBase) {
                     living.setRevengeTarget((EntityLivingBase) entity);
                 }
 
                 if (entity instanceof EntityPlayer) {
-                    living.recentlyHit = 100;
-                    living.attackingPlayer = (EntityPlayer) entity;
+                    accessor.setRecentlyHit(100);
+                    accessor.setAttackingPlayer((EntityPlayer) entity);
 
                 } else if (entity instanceof EntityTameable) {
                     if (((EntityTameable) entity).isTamed()) {
-                        living.recentlyHit = 100;
-                        living.attackingPlayer = null;
+                        accessor.setRecentlyHit(100);
+                        accessor.setAttackingPlayer(null);
                     }
                 }
 
@@ -77,8 +80,8 @@ public class AddonDamageUtil {
 
                     living.attackedAtYaw = (float) (Math.atan2(deltaZ, deltaX) * 180.0D / Math.PI) - living.rotationYaw;
 
-                    // Assuming knockBack is also copied to your AddonDamageUtil, otherwise use EntityDamageUtil.knockBack(...)
-                    knockBack(living, entity, amount, deltaX, deltaZ, knockbackMultiplier);
+                    // FIXED: Routed to EntityDamageUtil instead of the missing local method
+                    EntityDamageUtil.knockBack(living, entity, amount, deltaX, deltaZ, knockbackMultiplier);
                 }
             }
 
@@ -87,10 +90,9 @@ public class AddonDamageUtil {
             // 3. Reset base HBM
             DamageResistanceHandler.reset();
 
-            // 4. Clean up addon states to prevent memory leaks or cascading damage bugs
+            // 4. Clean up addon states
             AddonDamageState.isNTDamage.remove();
             AddonDamageState.bypassVanillaArmorThisDamage.remove();
-            AddonDamageState.currentPDR.remove();
         }
     }
 }

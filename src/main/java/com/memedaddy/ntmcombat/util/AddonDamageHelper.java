@@ -1,6 +1,8 @@
 package com.memedaddy.ntmcombat.util;
 
 import com.hbm.lib.ModDamageSource;
+import com.hbm.util.DamageResistanceHandler;
+import com.memedaddy.ntmcombat.overwrite_contents.mixin.IResistanceStatsAccessor;
 import net.minecraft.util.DamageSource;
 import java.util.Locale;
 import java.util.HashMap;

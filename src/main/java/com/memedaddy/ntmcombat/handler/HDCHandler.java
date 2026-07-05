@@ -4,7 +4,7 @@ import com.memedaddy.ntmcombat.util.AddonDamageState;
 // Make sure this import matches the actual name of your Accessor interface!
 import com.memedaddy.ntmcombat.overwrite_contents.mixin.IDamageResistanceAccessor;
 import com.memedaddy.ntmcombat.api.IExtendedResistanceStats;
-import com.hbm.handler.DamageResistanceHandler;
+import com.hbm.util.DamageResistanceHandler;
 import com.hbm.util.Tuple.Quartet;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
@@ -36,8 +36,8 @@ public class HDCHandler {
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
 
-        // 3. Only apply if a mob or environmental hazard hit them
-        if (!isMobDamageSource(event.getSource())) return;
+        // 3. Only apply if a mob or environmental hazard hit them (No PvP)
+        if (!isValidDamageSource(event.getSource())) return;
 
         // Fetch the player's HDC from their worn armor
         float hdc = getHDCFor(player);
@@ -74,10 +74,14 @@ public class HDCHandler {
         setHDCFloor(player, floorAfterHit);
     }
 
-    private static boolean isMobDamageSource(DamageSource source) {
+    private static boolean isValidDamageSource(DamageSource source) {
         Entity attacker = source.getTrueSource();
-        // Exclude PvP (Player vs Player) from HDC logic
-        return attacker instanceof EntityLivingBase && !(attacker instanceof EntityPlayer);
+        // If it is a player attacking, disable HDC (PvP)
+        if (attacker instanceof EntityPlayer) {
+            return false;
+        }
+        // Otherwise, allow it. This covers mobs, null sources (fall damage/fire), and explosions.
+        return true;
     }
 
     private static float getHDCFor(EntityPlayer player) {
@@ -88,6 +92,7 @@ public class HDCHandler {
                 player.getItemStackFromSlot(EntityEquipmentSlot.FEET).isEmpty() ? null : player.getItemStackFromSlot(EntityEquipmentSlot.FEET).getItem()
         );
 
+        // Ensure this call perfectly matches your Accessor's name
         DamageResistanceHandler.ResistanceStats stats = IDamageResistanceAccessor.getSetStats().get(wornSet);
         if (stats != null) {
             return ((IExtendedResistanceStats) stats).getHDC();

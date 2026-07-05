@@ -1,8 +1,9 @@
-package com.yourname.ntmaddon.mixin;
+package com.memedaddy.ntmcombat.overwrite_contents.mixin;
 
-import com.hbm.handler.DamageResistanceHandler;
+import com.hbm.util.DamageResistanceHandler;
 import com.hbm.util.EntityDamageUtil;
-import com.yourname.ntmaddon.util.AddonDamageUtil; // Your new util class!
+import com.memedaddy.ntmcombat.util.AddonDamageState;
+import com.memedaddy.ntmcombat.util.AddonDamageUtil;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.util.CombatRules;
@@ -16,20 +17,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = EntityDamageUtil.class, remap = false)
 public class MixinEntityDamageUtil {
 
-    // Assuming the method is static and returns a boolean.
-    // If it returns void, use CallbackInfo instead.
+    // ADDED: The original method parameters (entity, source, amount) before the cir
     @Inject(method = "attackEntityFromNT", at = @At("HEAD"), remap = false)
-    private static void onAttackStart(CallbackInfoReturnable<Boolean> cir) {
+    private static void onAttackStart(Entity entity, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         AddonDamageState.isNTDamage.set(true);
     }
 
-    // @At("TAIL") ensures the flag is lowered right before the method exits,
-    // regardless of which 'return' statement was hit inside the method.
+    // ADDED: The original method parameters (entity, source, amount) before the cir
     @Inject(method = "attackEntityFromNT", at = @At("TAIL"), remap = false)
-    private static void onAttackEnd(CallbackInfoReturnable<Boolean> cir) {
+    private static void onAttackEnd(Entity entity, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         AddonDamageState.isNTDamage.set(false);
     }
-}
+
+    // REMOVED: The stray '}' that was right here closing the class prematurely
+
     /**
      * Overrides HBM's default armor calculation to use your custom toughness math.
      */
@@ -41,7 +42,9 @@ public class MixinEntityDamageUtil {
             float armor = living.getTotalArmorValue();
             float toughness = (float) living.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS).getAttributeValue();
 
-            float pdr = DamageResistanceHandler.currentPDR.get();
+            // FIXED: Removed .get() assuming this is a native HBM float.
+            // (If you meant to use your custom state, it should be AddonDamageState.currentPDR.get())
+            float pdr = DamageResistanceHandler.currentPDR;
             float effectiveArmor = armor * (1 - pdr);
 
             float newAmount = CombatRules.getDamageAfterAbsorb(amount, effectiveArmor, toughness);
@@ -50,6 +53,7 @@ public class MixinEntityDamageUtil {
             cir.setReturnValue(newAmount);
         }
     }
+
     /**
      * Overrides the iFrame ignore method to utilize your multipart unwrapper.
      */
@@ -62,7 +66,7 @@ public class MixinEntityDamageUtil {
         if (!victim.attackEntityFrom(src, damage)) {
             float lastDamage = 0;
             if (victim instanceof EntityLivingBase) {
-                lastDamage = ((EntityLivingBase)victim).lastDamage;
+                lastDamage = ((IEntityLivingBaseAccessor) victim).getLastDamage();
             }
             float dmg = damage + lastDamage;
             cir.setReturnValue(victim.attackEntityFrom(src, dmg));
@@ -70,4 +74,4 @@ public class MixinEntityDamageUtil {
             cir.setReturnValue(true);
         }
     }
-}
+} // <- The class now correctly closes down here.

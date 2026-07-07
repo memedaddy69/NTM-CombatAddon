@@ -309,7 +309,7 @@ tasks.register('generateMixinJson') {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     if (propertyBool('use_modern_java_syntax')) {
-        if (it.name in ['compileMcLauncherJava', 'compilePatchedMcJava']) {
+        if (it.name in ['compileMcLauncherJava', 'compilePatchedMcJava', 'compileJarPatcher']) {
             return
         }
         sourceCompatibility = 17
@@ -337,6 +337,54 @@ tasks.named('injectTags', InjectTagsTask).configure {
         return propertyBool('use_tags') && !it.getTags().get().isEmpty()
     }
     it.outputClassName.set(propertyString('tag_class_name'))
+}
+
+def mcpSrgFile = file("${gradle.gradleUserHomeDir}/caches/minecraft/de/oceanlabs/mcp/mcp_${propertyString('mapping_channel')}/${propertyString('mapping_version')}/rfg_srgs/srg-mcp.srg")
+
+// Compile JarPatcher separately so it can run before main compilation
+tasks.register('compileJarPatcher', JavaCompile) {
+    group 'ntmcombat'
+    description 'Compile JarPatcher for patching NTM jar'
+    source = sourceSets.main.java.matching { include 'com/memedaddy/ntmcombat/patch/*.java' }
+    // Filter out Jabel — it's a javac Plugin loaded via ServiceLoader and crashes on JDK 25
+    classpath = configurations.compileClasspath.filter {
+        !it.name.contains('jabel-javac-plugin') && !it.name.contains('jna-platform')
+    }
+    destinationDirectory = layout.buildDirectory.dir('classes/jarpatcher')
+    options.release.set(8)
+}
+
+tasks.register('patchNtmJar', JavaExec) {
+    group 'ntmcombat'
+    description 'Patch SRG references in NTM classes to MCP names'
+    dependsOn compileJarPatcher
+    inputs.file('libs/NTM-CE-1.12.2-2.5.0.5.jar')
+    inputs.file(mcpSrgFile)
+    outputs.file(layout.buildDirectory.file('libs/ntm-patched.jar'))
+    classpath = files(
+        layout.buildDirectory.dir('classes/jarpatcher'),
+        configurations.compileClasspath
+    )
+    mainClass = 'com.memedaddy.ntmcombat.patch.JarPatcher'
+    args = [
+        mcpSrgFile.absolutePath,
+        file('libs/NTM-CE-1.12.2-2.5.0.5.jar').absolutePath,
+        layout.buildDirectory.file('libs/ntm-patched.jar').get().asFile.absolutePath
+    ]
+    doFirst {
+        layout.buildDirectory.file('libs').get().asFile.mkdirs()
+    }
+}
+
+// Main compilation needs the patched jar for Mixin AP to resolve targets
+compileJava.dependsOn patchNtmJar
+tasks.named('extractDependencyATs').configure {
+    dependsOn 'patchNtmJar'
+}
+
+// Ensure patched jar exists before running the client
+tasks.named('runClient').configure {
+    dependsOn 'patchNtmJar'
 }
 
 tasks.named('prepareObfModsFolder').configure {

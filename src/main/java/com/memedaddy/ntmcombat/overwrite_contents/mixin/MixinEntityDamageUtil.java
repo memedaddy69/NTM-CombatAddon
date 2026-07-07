@@ -2,7 +2,6 @@ package com.memedaddy.ntmcombat.overwrite_contents.mixin;
 
 import com.hbm.util.DamageResistanceHandler;
 import com.hbm.util.EntityDamageUtil;
-import com.memedaddy.ntmcombat.util.AddonDamageState;
 import com.memedaddy.ntmcombat.util.AddonDamageUtil;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -19,14 +18,14 @@ public class MixinEntityDamageUtil {
 
     // ADDED: The original method parameters (entity, source, amount) before the cir
     @Inject(method = "attackEntityFromNT", at = @At("HEAD"), remap = false)
-    private static void onAttackStart(Entity entity, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
-        AddonDamageState.isNTDamage.set(true);
+    private static void onAttackStart(EntityLivingBase living, DamageSource source, float amount, boolean ignoreIFrame, boolean allowSpecialCancel, double knockbackMultiplier, float pierceDT, float pierce, CallbackInfoReturnable<Boolean> cir) {
+        AddonDamageUtil.isNTDamage.set(true);
     }
 
     // ADDED: The original method parameters (entity, source, amount) before the cir
     @Inject(method = "attackEntityFromNT", at = @At("TAIL"), remap = false)
-    private static void onAttackEnd(Entity entity, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
-        AddonDamageState.isNTDamage.set(false);
+    private static void onAttackEnd(EntityLivingBase living, DamageSource source, float amount, boolean ignoreIFrame, boolean allowSpecialCancel, double knockbackMultiplier, float pierceDT, float pierce, CallbackInfoReturnable<Boolean> cir) {
+        AddonDamageUtil.isNTDamage.set(false);
     }
 
     // REMOVED: The stray '}' that was right here closing the class prematurely
@@ -36,14 +35,14 @@ public class MixinEntityDamageUtil {
      */
     @Inject(method = "applyArmorCalculationsNT", at = @At("HEAD"), cancellable = true)
     private static void injectCustomArmorCalculations(EntityLivingBase living, DamageSource source, float amount, CallbackInfoReturnable<Float> cir) {
-        boolean bypassArmor = AddonDamageState.bypassVanillaArmorThisDamage.get();
+        boolean bypassArmor = AddonDamageUtil.bypassVanillaArmorThisDamage.get();
 
-        if (!source.isUnblockable() && !bypassArmor) {
+        if (!bypassArmor) {
             float armor = living.getTotalArmorValue();
             float toughness = (float) living.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS).getAttributeValue();
 
             // FIXED: Removed .get() assuming this is a native HBM float.
-            // (If you meant to use your custom state, it should be AddonDamageState.currentPDR.get())
+            // (If you meant to use your custom state, it should be AddonDamageUtil.currentPDR.get())
             float pdr = DamageResistanceHandler.currentPDR;
             float effectiveArmor = armor * (1 - pdr);
 

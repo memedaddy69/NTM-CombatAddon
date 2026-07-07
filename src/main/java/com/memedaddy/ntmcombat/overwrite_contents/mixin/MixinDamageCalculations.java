@@ -4,8 +4,7 @@ import com.hbm.util.DamageResistanceHandler;
 import com.hbm.util.I18nUtil;
 import com.hbm.util.Tuple.Quartet;
 import com.memedaddy.ntmcombat.api.IExtendedResistanceStats;
-import com.memedaddy.ntmcombat.util.AddonDamageHelper;
-import com.memedaddy.ntmcombat.util.AddonDamageState;
+import com.memedaddy.ntmcombat.util.AddonDamageUtil;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.EntityEquipmentSlot;
@@ -34,7 +33,7 @@ public class MixinDamageCalculations {
         boolean isPlayer = damage.getTrueSource() instanceof EntityPlayer;
 
         // RULE 2: Is this currently being routed through HBM's custom NT attack method?
-        boolean isNT = AddonDamageState.isNTDamage.get();
+        boolean isNT = AddonDamageUtil.isNTDamage.get();
 
         // If a Player caused it, OR it's a SEDNA weapon/turret/hazard, back out and let HBM handle it
         if (isPlayer || isNT) {
@@ -72,7 +71,7 @@ public class MixinDamageCalculations {
             }
 
             // Step 2: Elemental DR (Only applies if FIRE, EXPL, or EN)
-            float elementalDR = AddonDamageHelper.getElementalDR(stats, damage);
+            float elementalDR = AddonDamageUtil.getElementalDR(stats, damage);
             if (elementalDR > 0F) {
                 // Applying armor piercing strictly to the elemental DR multiplier
                 float effectiveDR = elementalDR * MathHelper.clamp(1F - pierce, 0F, 2F);

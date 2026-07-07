@@ -1,4 +1,4 @@
-package com.memedaddy.ntmcombat; // Adjust to your actual package
+package com.memedaddy.ntmcombat;
 
 import com.hbm.util.DamageResistanceHandler;
 import com.hbm.items.ModItems;
@@ -11,7 +11,6 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
-
 import java.util.HashMap;
 
 @Mod(

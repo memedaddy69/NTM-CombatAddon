@@ -1,6 +1,6 @@
 package com.memedaddy.ntmcombat.handler;
 
-import com.memedaddy.ntmcombat.util.AddonDamageState;
+import com.memedaddy.ntmcombat.util.AddonDamageUtil;
 // Make sure this import matches the actual name of your Accessor interface!
 import com.memedaddy.ntmcombat.overwrite_contents.mixin.IDamageResistanceAccessor;
 import com.memedaddy.ntmcombat.api.IExtendedResistanceStats;
@@ -30,7 +30,7 @@ public class HDCHandler {
     public void onEntityDamage(LivingDamageEvent event) {
 
         // 1. Skip if HBM is currently doing SEDNA/Internal math (caught by your Mixin)
-        if (AddonDamageState.isNTDamage.get()) return;
+        if (AddonDamageUtil.isNTDamage.get()) return;
 
         // 2. Only apply HDC to players
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
@@ -84,7 +84,7 @@ public class HDCHandler {
         return true;
     }
 
-    private static float getHDCFor(EntityPlayer player) {
+    public static float getHDCFor(EntityPlayer player) {
         Quartet<Item, Item, Item, Item> wornSet = new Quartet<>(
                 player.getItemStackFromSlot(EntityEquipmentSlot.HEAD).isEmpty() ? null : player.getItemStackFromSlot(EntityEquipmentSlot.HEAD).getItem(),
                 player.getItemStackFromSlot(EntityEquipmentSlot.CHEST).isEmpty() ? null : player.getItemStackFromSlot(EntityEquipmentSlot.CHEST).getItem(),
@@ -111,5 +111,15 @@ public class HDCHandler {
         } else {
             hdcTickFloor.put(player, new long[]{currentTick, Float.floatToRawIntBits(healthFloor)});
         }
+    }
+    // ADD THIS to HDCHandler.java
+    public static float applyHDCFloor(EntityPlayer player, float proposedHealth) {
+        long[] existingFloor = hdcTickFloor.get(player);
+        if (existingFloor != null && existingFloor[0] == player.world.getTotalWorldTime()) {
+            float floor = Float.intBitsToFloat((int) existingFloor[1]);
+            // Returns whichever is higher: the proposed health, or the absolute floor
+            return Math.max(proposedHealth, floor);
+        }
+        return proposedHealth;
     }
 }

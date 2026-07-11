@@ -2,6 +2,7 @@ package com.memedaddy.ntmcombat.overwrite_contents.mixin;
 
 import com.hbm.util.DamageResistanceHandler;
 import com.hbm.util.EntityDamageUtil;
+import com.memedaddy.ntmcombat.handler.SRPMobAdaptReflect;
 import com.memedaddy.ntmcombat.util.AddonDamageUtil;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -11,6 +12,7 @@ import net.minecraft.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value = EntityDamageUtil.class, remap = false)
@@ -35,22 +37,20 @@ public class MixinEntityDamageUtil {
      */
     @Inject(method = "applyArmorCalculationsNT", at = @At("HEAD"), cancellable = true)
     private static void injectCustomArmorCalculations(EntityLivingBase living, DamageSource source, float amount, CallbackInfoReturnable<Float> cir) {
-        boolean bypassArmor = AddonDamageUtil.bypassVanillaArmorThisDamage.get();
-
-        if (!bypassArmor) {
-            float armor = living.getTotalArmorValue();
-            float toughness = (float) living.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS).getAttributeValue();
-
-            // FIXED: Removed .get() assuming this is a native HBM float.
-            // (If you meant to use your custom state, it should be AddonDamageUtil.currentPDR.get())
-            float pdr = DamageResistanceHandler.currentPDR;
-            float effectiveArmor = armor * (1 - pdr);
-
-            float newAmount = CombatRules.getDamageAfterAbsorb(amount, effectiveArmor, toughness);
-
-            // Return your new amount and cancel HBM's original math
-            cir.setReturnValue(newAmount);
+        if (source.isUnblockable() || AddonDamageUtil.bypassVanillaArmorThisDamage.get()) {
+            cir.setReturnValue(amount);
+            return;
         }
+
+        float armor = living.getTotalArmorValue();
+        float toughness = (float) living.getEntityAttribute(SharedMonsterAttributes.ARMOR_TOUGHNESS).getAttributeValue();
+
+        float pdr = DamageResistanceHandler.currentPDR;
+        float effectiveArmor = armor * (1 - pdr);
+
+        float newAmount = CombatRules.getDamageAfterAbsorb(amount, effectiveArmor, toughness);
+
+        cir.setReturnValue(newAmount);
     }
 
     /**
@@ -72,5 +72,21 @@ public class MixinEntityDamageUtil {
         } else {
             cir.setReturnValue(true);
         }
+    }
+
+    /**
+     * SRP Parasite Entity Adaptation: intercepts damage flowing through the SEDNA
+     * pipeline and applies SRP's entity-level adaptation reduction before armor/potion
+     * calculations run (only when SRP is loaded).
+     */
+    @ModifyVariable(method = "damageEntityNT", at = @At("HEAD"), argsOnly = true)
+    private static float injectSRPAdaptation(float amount, EntityLivingBase living, DamageSource source) {
+        if (SRPMobAdaptReflect.skipNextDamageEntityCall) {
+            System.out.println("[SRP-TRACE] NESTED BLOCKED by skipNextDamageEntityCall flag"
+                    + " living=" + living.getClass().getSimpleName() + "@" + Integer.toHexString(living.hashCode())
+                    + " tick=" + living.ticksExisted + " amount=" + amount);
+            return amount;
+        }
+        return SRPMobAdaptReflect.applyAdaptation(living, source, amount);
     }
 } // <- The class now correctly closes down here.

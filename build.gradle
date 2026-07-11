@@ -54,7 +54,7 @@ tasks.decompressDecompiledSources.enabled !propertyBool('change_minecraft_source
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(propertyBool('use_modern_java_syntax') ? 16 : 8))
+        languageVersion.set(JavaLanguageVersion.of(16))
         // Azul covers the most platforms for Java 8 toolchains, crucially including MacOS arm64
         vendor.set(JvmVendorSpec.AZUL)
     }
@@ -341,15 +341,21 @@ tasks.named('injectTags', InjectTagsTask).configure {
 
 def mcpSrgFile = file("${gradle.gradleUserHomeDir}/caches/minecraft/de/oceanlabs/mcp/mcp_${propertyString('mapping_channel')}/${propertyString('mapping_version')}/rfg_srgs/srg-mcp.srg")
 
+// Separate configuration for JarPatcher — avoid circular dep on ntm-patched.jar
+configurations {
+    jarPatcher
+}
+dependencies {
+    // JarPatcher only needs ASM for bytecode manipulation
+    jarPatcher 'org.ow2.asm:asm-debug-all:5.2'
+}
+
 // Compile JarPatcher separately so it can run before main compilation
 tasks.register('compileJarPatcher', JavaCompile) {
     group 'ntmcombat'
     description 'Compile JarPatcher for patching NTM jar'
     source = sourceSets.main.java.matching { include 'com/memedaddy/ntmcombat/patch/*.java' }
-    // Filter out Jabel — it's a javac Plugin loaded via ServiceLoader and crashes on JDK 25
-    classpath = configurations.compileClasspath.filter {
-        !it.name.contains('jabel-javac-plugin') && !it.name.contains('jna-platform')
-    }
+    classpath = configurations.jarPatcher
     destinationDirectory = layout.buildDirectory.dir('classes/jarpatcher')
     options.release.set(8)
 }
@@ -363,7 +369,7 @@ tasks.register('patchNtmJar', JavaExec) {
     outputs.file(layout.buildDirectory.file('libs/ntm-patched.jar'))
     classpath = files(
         layout.buildDirectory.dir('classes/jarpatcher'),
-        configurations.compileClasspath
+        configurations.jarPatcher
     )
     mainClass = 'com.memedaddy.ntmcombat.patch.JarPatcher'
     args = [

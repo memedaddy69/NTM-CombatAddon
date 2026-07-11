@@ -19,6 +19,7 @@ public abstract class MixinTileEntityTurretMaxwell {
     )
     private boolean redirectMaxwellDamage(Entity victim, DamageSource src, float damage) {
         Entity unwrapped = AddonDamageUtil.unwrapMultiPart(victim);
+        src.setDamageIsAbsolute();
         if (unwrapped instanceof EntityLivingBase living) {
             return EntityDamageUtil.attackEntityFromNT(living, src, damage, true, true, 0, 0, 0);
         }

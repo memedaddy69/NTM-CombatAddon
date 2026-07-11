@@ -2,15 +2,10 @@ package com.memedaddy.ntmcombat.util;
 
 import com.hbm.lib.ModDamageSource;
 import com.hbm.util.DamageResistanceHandler;
-import com.hbm.util.EntityDamageUtil;
-import com.memedaddy.ntmcombat.overwrite_contents.mixin.IEntityLivingBaseAccessor;
 import com.memedaddy.ntmcombat.overwrite_contents.mixin.IResistanceStatsAccessor;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.MultiPartEntityPart;
-import net.minecraft.entity.passive.EntityTameable;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.DamageSource;
 
 import java.util.HashMap;
@@ -63,6 +58,9 @@ public class AddonDamageUtil {
         if (source.isFireDamage()) return "FIRE";
 
         String type = source.getDamageType().toLowerCase(Locale.US);
+
+        if (type.equals("fire")) return "FIRE";
+        if (type.equals("artillery") || type.equals("himars")) return "EXPL";
         if (type.equals("laser") || type.equals("plasma") || type.equals("microwave") ||
                 type.equals("subatomic") || type.equals("electric")) {
             return "EN";
@@ -75,71 +73,4 @@ public class AddonDamageUtil {
         return null;
     }
 
-    /**
-     * Compatibility helper: treat the given vanilla DamageSource (for example DamageSource.ON_FIRE)
-     * as the damage source while still routing the hit through SEDNA reductions.
-     * This allows other mods that check for exact vanilla DamageSource instances to react
-     * while SEDNA DT/DR are still applied via the LivingHurtEvent.
-     */
-    public static boolean attackEntityFromNTUsingVanillaSource(EntityLivingBase living, DamageSource vanillaSource, Entity trueAttacker, float amount, boolean ignoreIFrame, boolean allowSpecialCancel, double knockbackMultiplier, float pierceDT, float pierce, boolean bypassVanillaArmor) {
-
-        if (living instanceof EntityPlayerMP && trueAttacker instanceof EntityPlayer) {
-            if (!((EntityPlayerMP) living).canAttackPlayer((EntityPlayer) trueAttacker))
-                return false;
-        }
-
-        if (ignoreIFrame) {
-            ((IEntityLivingBaseAccessor) living).setLastDamage(0F);
-            living.hurtResistantTime = 0;
-        }
-
-        DamageResistanceHandler.setup(pierceDT, pierce);
-
-        AddonDamageUtil.bypassVanillaArmorThisDamage.set(bypassVanillaArmor);
-        float reducedAmount = EntityDamageUtil.applyArmorCalculationsNT(living, vanillaSource, amount);
-
-        AddonDamageUtil.isNTDamage.set(true);
-
-        try {
-            boolean ret = living.attackEntityFrom(vanillaSource, reducedAmount);
-
-            Entity entity = trueAttacker != null ? trueAttacker : vanillaSource.getTrueSource();
-            IEntityLivingBaseAccessor accessor = (IEntityLivingBaseAccessor) living;
-            if (entity != null) {
-                if (entity instanceof EntityLivingBase) {
-                    living.setRevengeTarget((EntityLivingBase) entity);
-                }
-
-                if (entity instanceof EntityPlayer) {
-                    accessor.setRecentlyHit(100);
-                    accessor.setAttackingPlayer((EntityPlayer) entity);
-
-                } else if (entity instanceof EntityTameable) {
-                    if (((EntityTameable) entity).isTamed()) {
-                        accessor.setRecentlyHit(100);
-                        accessor.setAttackingPlayer(null);
-                    }
-                }
-
-                if (knockbackMultiplier > 0) {
-                    double deltaX = entity.posX - living.posX;
-                    double deltaZ = entity.posZ - living.posZ;
-
-                    for (double tmp = deltaZ; deltaX * deltaX + deltaZ * deltaZ < 1.0E-4D; deltaZ = (Math.random() - Math.random()) * 0.01D) {
-                        deltaX = (Math.random() - Math.random()) * 0.01D;
-                    }
-
-                    living.attackedAtYaw = (float) (Math.atan2(deltaZ, deltaX) * 180.0D / Math.PI) - living.rotationYaw;
-
-                    EntityDamageUtil.knockBack(living, entity, amount, deltaX, deltaZ, knockbackMultiplier);
-                }
-            }
-
-            return ret;
-        } finally {
-            DamageResistanceHandler.reset();
-            AddonDamageUtil.isNTDamage.remove();
-            AddonDamageUtil.bypassVanillaArmorThisDamage.remove();
-        }
-    }
 }

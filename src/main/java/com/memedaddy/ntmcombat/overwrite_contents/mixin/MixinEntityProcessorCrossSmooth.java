@@ -38,27 +38,15 @@ public class MixinEntityProcessorCrossSmooth {
 		Entity unwrapped = AddonDamageUtil.unwrapMultiPart(entity);
 
 		if (!(unwrapped instanceof EntityLivingBase living)) {
-			if (clazz == DamageClass.FIRE) {
-				DamageSource dmg = BulletConfig.getDamage(null, source.exploder instanceof EntityLivingBase ? (EntityLivingBase) source.exploder : null, clazz);
-				unwrapped.attackEntityFrom(dmg, amount);
-				ci.cancel();
-			}
+			DamageSource dmg = BulletConfig.getDamage(null, source.exploder instanceof EntityLivingBase ? (EntityLivingBase) source.exploder : null, clazz);
+			unwrapped.attackEntityFrom(dmg, amount);
+			ci.cancel();
 			return;
 		}
 
 		DamageSource dmg = BulletConfig.getDamage(null, source.exploder instanceof EntityLivingBase ? (EntityLivingBase) source.exploder : null, clazz);
 
-		if (clazz == DamageClass.FIRE) {
-			EntityLivingBase trueAttacker = null;
-			if (source.compat != null && source.compat.getExplosivePlacedBy() instanceof EntityLivingBase) {
-				trueAttacker = (EntityLivingBase) source.compat.getExplosivePlacedBy();
-			} else if (source.exploder instanceof EntityLivingBase) {
-				trueAttacker = (EntityLivingBase) source.exploder;
-			}
-			AddonDamageUtil.attackEntityFromNTUsingVanillaSource(living, DamageSource.ON_FIRE, trueAttacker, amount, true, false, 0F, pierceDT, pierceDR, false);
-		} else {
-			EntityDamageUtil.attackEntityFromNT(living, dmg, amount, true, false, 0F, pierceDT, pierceDR);
-		}
+		EntityDamageUtil.attackEntityFromNT(living, dmg, amount, true, false, 0F, pierceDT, pierceDR);
 
 		if (!living.isEntityAlive()) ConfettiUtil.decideConfetti(living, dmg);
 

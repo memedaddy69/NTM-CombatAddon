@@ -19,6 +19,7 @@ public abstract class MixinTileEntityTurretTauon {
     )
     private boolean redirectTauonDamage(Entity target, DamageSource source, float amount) {
         Entity unwrapped = AddonDamageUtil.unwrapMultiPart(target);
+        source.setDamageIsAbsolute();
         if (unwrapped instanceof EntityLivingBase living) {
             return EntityDamageUtil.attackEntityFromNT(living, source, amount, true, true, 0, 0, 0);
         }

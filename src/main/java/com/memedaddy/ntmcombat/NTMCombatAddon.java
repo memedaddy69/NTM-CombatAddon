@@ -26,7 +26,6 @@ public class NTMCombatAddon {
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
-        // Register your HDC Event Handler here
         MinecraftForge.EVENT_BUS.register(new HDCHandler());
     }
 

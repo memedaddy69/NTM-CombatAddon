@@ -6,7 +6,9 @@
 	"minVersion": "0.8.5",
 	"compatibilityLevel": "JAVA_8",
 	"mixins": ["MixinEntityDamageUtil", "IDamageResistanceAccessor", "IResistanceStatsAccessor", "MixinDamageCalculations", "IEntityLivingBaseAccessor", "MixinResistanceStats",
-		       "MixinEntityProcessorCross", "MixinEntityPlayer", "MixinTileEntityTurretBaseNT", "MixinTileEntityTurretMaxwell", "MixinTileEntityTurretTauon", "MixinBulletConfig", "MixinEntityProcessorCrossSmooth", "MixinXFactory40mm", "MixinXFactoryRocket", "MixinXFactoryFlamer", "MixinItemGrenadeFilling"],
+		       "MixinEntityProcessorCross", "MixinEntityPlayer", "MixinTileEntityTurretBaseNT", "MixinTileEntityTurretMaxwell", "MixinTileEntityTurretTauon", "MixinBulletConfig", "MixinEntityProcessorCrossSmooth", "MixinXFactory40mm", "MixinXFactoryRocket",         "MixinXFactoryFlamer",
+        "MixinXFactoryAccelerator",
+        "MixinItemGrenadeFilling"],
 	"server": [],
 	"client": []
 }
